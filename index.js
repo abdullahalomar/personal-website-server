@@ -176,10 +176,40 @@ async function run() {
 
     // Cloth Delete Operation
     app.delete("/api/v1/blogs/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await blogCollection.deleteOne(query, { new: true });
-      res.send(result);
+      try {
+        const id = req.params.id;
+
+        // Validate ID format
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid blog ID format",
+          });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const result = await blogCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Blog not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Blog deleted successfully",
+          data: result,
+        });
+      } catch (error) {
+        console.error("Error deleting blog:", error);
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+          error: error.message,
+        });
+      }
     });
 
     // Get a single cloth item by ID
@@ -212,38 +242,87 @@ async function run() {
     });
 
     // Cloth Update Operation
+    // app.put("/api/v1/blogs/:id", async (req, res) => {
+    //   const blogId = req.params.id;
+    //   const { title, image, description } = req.body; // Get updated cloth data from the request body
+
+    //   try {
+    //     const filter = { _id: new ObjectId(blogId) };
+    //     const updateDoc = {
+    //       title,
+    //       description,
+    //       image,
+    //     };
+
+    //     const result = await blogCollection.replaceOne(filter, updateDoc, {
+    //       new: true,
+    //     });
+
+    //     if (result.modifiedCount === 1) {
+    //       res.json({
+    //         success: true,
+    //         message: "Blog updated successfully",
+    //       });
+    //     } else {
+    //       res.status(404).json({
+    //         success: false,
+    //         message: "Blog not found",
+    //       });
+    //     }
+    //   } catch (error) {
+    //     console.error("Error updating Blog:", error);
+    //     res.status(500).json({
+    //       success: false,
+    //       message: "Error updating Blog",
+    //     });
+    //   }
+    // });
+
     app.put("/api/v1/blogs/:id", async (req, res) => {
       const blogId = req.params.id;
-      const { title, image, description } = req.body; // Get updated cloth data from the request body
+      const { title, image, description } = req.body;
 
       try {
-        const filter = { _id: new ObjectId(blogId) };
-        const updateDoc = {
-          title,
-          description,
-          image,
-        };
-
-        const result = await blogCollection.replaceOne(filter, updateDoc, {
-          new: true,
-        });
-
-        if (result.modifiedCount === 1) {
-          res.json({
-            success: true,
-            message: "Blog updated successfully",
+        // Validate ID
+        if (!ObjectId.isValid(blogId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid blog ID",
           });
-        } else {
-          res.status(404).json({
+        }
+
+        // Update blog
+        const result = await blogCollection.findOneAndUpdate(
+          { _id: new ObjectId(blogId) },
+          {
+            $set: {
+              title,
+              description,
+              image,
+              updatedAt: new Date(),
+            },
+          },
+          { returnDocument: "after" }
+        );
+
+        if (!result.value) {
+          return res.status(404).json({
             success: false,
             message: "Blog not found",
           });
         }
+
+        // Return updated blog
+        res.status(200).json({
+          success: true,
+          message: "Blog updated successfully",
+          data: result.value,
+        });
       } catch (error) {
-        console.error("Error updating Blog:", error);
+        console.error("Error updating blog:", error);
         res.status(500).json({
           success: false,
-          message: "Error updating Blog",
+          message: "Internal server error",
         });
       }
     });
