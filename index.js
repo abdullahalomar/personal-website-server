@@ -178,7 +178,6 @@ async function run() {
     });
 
     // Get all blogs
-
     app.get("/api/v1/blogs", async (req, res) => {
       try {
         const blogs = await blogCollection.find({}).toArray();
