@@ -28,6 +28,8 @@ async function run() {
     const db = client.db("portfolio");
     const collection = db.collection("users");
     const blogCollection = db.collection("blogs");
+    const aboutCollection = db.collection("about");
+    const projectCollection = db.collection("projects");
 
     // User Registration
     app.post("/api/v1/register", async (req, res) => {
@@ -129,34 +131,53 @@ async function run() {
       }
     });
 
+    // Blog Apis
     // ==============================================================
-    // Cloth Post Operation
+    // Blog Post Operation
     app.post("/api/v1/blogs", async (req, res) => {
       const { image, title, description } = req.body;
       console.log(req.body);
+
       try {
-        // Insert cloth into the cloth collection
+        // Create current timestamp
+        const currentTime = new Date();
+
+        // Insert blog into the blog collection with timestamps
         const result = await blogCollection.insertOne({
           image,
           title,
           description,
+          createdAt: currentTime,
+          updatedAt: currentTime,
+          publishedAt: currentTime, // When the blog was published
         });
+
         console.log(result);
 
         res.status(201).json({
           success: true,
           message: "Blog added successfully",
+          data: {
+            _id: result.insertedId,
+            image,
+            title,
+            description,
+            createdAt: currentTime,
+            updatedAt: currentTime,
+            publishedAt: currentTime,
+          },
         });
       } catch (error) {
         console.error("Error adding blog:", error);
         res.status(500).json({
           success: false,
           message: "Error adding blog",
+          error: error.message,
         });
       }
     });
 
-    // Get all cloths
+    // Get all blogs
 
     app.get("/api/v1/blogs", async (req, res) => {
       try {
@@ -174,7 +195,7 @@ async function run() {
       }
     });
 
-    // Cloth Delete Operation
+    // blog Delete Operation
     app.delete("/api/v1/blogs/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -212,7 +233,7 @@ async function run() {
       }
     });
 
-    // Get a single cloth item by ID
+    // Get a single blog item by ID
     app.get("/api/v1/blogs/:id", async (req, res) => {
       const blogId = req.params.id;
 
@@ -241,43 +262,7 @@ async function run() {
       }
     });
 
-    // Cloth Update Operation
-    // app.put("/api/v1/blogs/:id", async (req, res) => {
-    //   const blogId = req.params.id;
-    //   const { title, image, description } = req.body; // Get updated cloth data from the request body
-
-    //   try {
-    //     const filter = { _id: new ObjectId(blogId) };
-    //     const updateDoc = {
-    //       title,
-    //       description,
-    //       image,
-    //     };
-
-    //     const result = await blogCollection.replaceOne(filter, updateDoc, {
-    //       new: true,
-    //     });
-
-    //     if (result.modifiedCount === 1) {
-    //       res.json({
-    //         success: true,
-    //         message: "Blog updated successfully",
-    //       });
-    //     } else {
-    //       res.status(404).json({
-    //         success: false,
-    //         message: "Blog not found",
-    //       });
-    //     }
-    //   } catch (error) {
-    //     console.error("Error updating Blog:", error);
-    //     res.status(500).json({
-    //       success: false,
-    //       message: "Error updating Blog",
-    //     });
-    //   }
-    // });
-
+    // update blog
     app.put("/api/v1/blogs/:id", async (req, res) => {
       const blogId = req.params.id;
       const { title, image, description } = req.body;
@@ -302,31 +287,414 @@ async function run() {
               updatedAt: new Date(),
             },
           },
-          { returnDocument: "after" }
+          {
+            returnDocument: "after",
+            upsert: false, // Make sure we don't create new document if not found
+          }
         );
 
-        if (!result.value) {
+        // Check if blog was found and updated
+        if (!result) {
           return res.status(404).json({
             success: false,
             message: "Blog not found",
           });
         }
 
-        // Return updated blog
+        // Return updated blog with success response
         res.status(200).json({
           success: true,
           message: "Blog updated successfully",
-          data: result.value,
+          data: result, // result itself contains the updated document
         });
       } catch (error) {
         console.error("Error updating blog:", error);
         res.status(500).json({
           success: false,
           message: "Internal server error",
+          error: error.message,
         });
       }
     });
 
+    // ==============================================================
+
+    // About Apis
+    // ==============================================================
+    // About Post Operation
+    app.post("/api/v1/about", async (req, res) => {
+      const { image, occupation, description, email, phone } = req.body;
+      console.log(req.body);
+
+      try {
+        const result = await aboutCollection.insertOne({
+          image,
+          occupation,
+          description,
+          email,
+          phone,
+        });
+
+        console.log(result);
+
+        res.status(201).json({
+          success: true,
+          message: "About added successfully",
+          data: {
+            _id: result.insertedId,
+            image,
+            occupation,
+            description,
+            email,
+            phone,
+          },
+        });
+      } catch (error) {
+        console.error("Error adding about:", error);
+        res.status(500).json({
+          success: false,
+          message: "Error adding about",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get all About
+
+    app.get("/api/v1/about", async (req, res) => {
+      try {
+        const about = await aboutCollection.find({}).toArray();
+        res.json({
+          success: true,
+          data: about,
+        });
+      } catch (error) {
+        console.error("Error fetching about:", error);
+        res.status(500).json({
+          success: false,
+          message: "Error fetching about",
+        });
+      }
+    });
+
+    // About Delete Operation
+    app.delete("/api/v1/about/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        // Validate ID format
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid about ID format",
+          });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const result = await aboutCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "About not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "About deleted successfully",
+          data: result,
+        });
+      } catch (error) {
+        console.error("Error deleting about:", error);
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get a single About item by ID
+    app.get("/api/v1/about/:id", async (req, res) => {
+      const aboutId = req.params.id;
+
+      try {
+        const about = await aboutCollection.findOne({
+          _id: new ObjectId(aboutId),
+        });
+
+        if (about) {
+          res.json({
+            success: true,
+            data: about,
+          });
+        } else {
+          res.status(404).json({
+            success: false,
+            message: "about not found",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching about:", error);
+        res.status(500).json({
+          success: false,
+          message: "Error fetching about",
+        });
+      }
+    });
+
+    // update about
+    app.put("/api/v1/about/:id", async (req, res) => {
+      const aboutId = req.params.id;
+      const { occupation, image, description, email, phone } = req.body;
+
+      try {
+        // Validate ID
+        if (!ObjectId.isValid(aboutId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid about ID",
+          });
+        }
+
+        // Update about
+        const result = await aboutCollection.findOneAndUpdate(
+          { _id: new ObjectId(aboutId) },
+          {
+            $set: {
+              image,
+              occupation,
+              description,
+              email,
+              phone,
+            },
+          },
+          {
+            returnDocument: "after",
+            upsert: false, // Make sure we don't create new document if not found
+          }
+        );
+
+        // Check if about was found and updated
+        if (!result) {
+          return res.status(404).json({
+            success: false,
+            message: "about not found",
+          });
+        }
+
+        // Return updated about with success response
+        res.status(200).json({
+          success: true,
+          message: "about updated successfully",
+          data: result, // result itself contains the updated document
+        });
+      } catch (error) {
+        console.error("Error updating about:", error);
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+          error: error.message,
+        });
+      }
+    });
+    // ==============================================================
+
+    // Projects API
+    // ==============================================================
+    // Project Post Operation
+    app.post("/api/v1/projects", async (req, res) => {
+      const { image, title, subTitle, description, gitLink, demoLink } =
+        req.body;
+      console.log(req.body);
+
+      try {
+        // Create current timestamp
+        const currentTime = new Date();
+
+        // Insert project into the project collection with timestamps
+        const result = await projectCollection.insertOne({
+          image,
+          title,
+          subTitle,
+          description,
+          gitLink,
+          demoLink,
+          createdAt: currentTime,
+          updatedAt: currentTime,
+          publishedAt: currentTime, // When the project was published
+        });
+
+        console.log(result);
+
+        res.status(201).json({
+          success: true,
+          message: "Project added successfully",
+          data: {
+            _id: result.insertedId,
+            image,
+            title,
+            subTitle,
+            description,
+            gitLink,
+            demoLink,
+            createdAt: currentTime,
+            updatedAt: currentTime,
+            publishedAt: currentTime,
+          },
+        });
+      } catch (error) {
+        console.error("Error adding project:", error);
+        res.status(500).json({
+          success: false,
+          message: "Error adding project",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get all Projects
+    app.get("/api/v1/projects", async (req, res) => {
+      try {
+        const projects = await projectCollection.find({}).toArray();
+        res.json({
+          success: true,
+          data: projects,
+        });
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+        res.status(500).json({
+          success: false,
+          message: "Error fetching projects",
+        });
+      }
+    });
+
+    // projects Delete Operation
+    app.delete("/api/v1/projects/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        // Validate ID format
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid projects ID format",
+          });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const result = await projectCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Project not found",
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Project deleted successfully",
+          data: result,
+        });
+      } catch (error) {
+        console.error("Error deleting project:", error);
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get a single project item by ID
+    app.get("/api/v1/projects/:id", async (req, res) => {
+      const projectId = req.params.id;
+
+      try {
+        const project = await projectCollection.findOne({
+          _id: new ObjectId(projectId),
+        });
+
+        if (project) {
+          res.json({
+            success: true,
+            data: project,
+          });
+        } else {
+          res.status(404).json({
+            success: false,
+            message: "project not found",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching project:", error);
+        res.status(500).json({
+          success: false,
+          message: "Error fetching project",
+        });
+      }
+    });
+
+    // update project
+    app.put("/api/v1/projects/:id", async (req, res) => {
+      const projectId = req.params.id;
+      const { title, image, description } = req.body;
+
+      try {
+        // Validate ID
+        if (!ObjectId.isValid(projectId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid project ID",
+          });
+        }
+
+        // Update project
+        const result = await projectCollection.findOneAndUpdate(
+          { _id: new ObjectId(projectId) },
+          {
+            $set: {
+              image,
+              title,
+              subTitle,
+              description,
+              gitLink,
+              demoLink,
+              updatedAt: new Date(),
+            },
+          },
+          {
+            returnDocument: "after",
+            upsert: false, // Make sure we don't create new document if not found
+          }
+        );
+
+        // Check if project was found and updated
+        if (!result) {
+          return res.status(404).json({
+            success: false,
+            message: "project not found",
+          });
+        }
+
+        // Return updated project with success response
+        res.status(200).json({
+          success: true,
+          message: "project updated successfully",
+          data: result, // result itself contains the updated document
+        });
+      } catch (error) {
+        console.error("Error updating project:", error);
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+          error: error.message,
+        });
+      }
+    });
     // ==============================================================
 
     // Start the server
