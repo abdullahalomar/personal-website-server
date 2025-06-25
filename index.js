@@ -641,7 +641,8 @@ async function run() {
     // update project
     app.put("/api/v1/projects/:id", async (req, res) => {
       const projectId = req.params.id;
-      const { title, image, description } = req.body;
+      const { title, image, description, subTitle, gitLink, demoLink } =
+        req.body;
 
       try {
         // Validate ID
