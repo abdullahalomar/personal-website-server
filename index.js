@@ -30,6 +30,7 @@ async function run() {
     const blogCollection = db.collection("blogs");
     const aboutCollection = db.collection("about");
     const projectCollection = db.collection("projects");
+    const heroCollection = db.collection("hero");
 
     // User Registration
     app.post("/api/v1/register", async (req, res) => {
@@ -85,6 +86,18 @@ async function run() {
       });
     });
 
+    // logout
+    // User Logout (Client will handle token removal, this is just a placeholder)
+    app.post("/api/v1/logout", (req, res) => {
+      // If you store token in cookies, you can clear it here using res.clearCookie().
+      // But since you're using JWT in the frontend (probably via localStorage), just respond success.
+
+      res.status(200).json({
+        success: true,
+        message: "Logout successful",
+      });
+    });
+
     // Get all users
     app.get("/api/v1/users", async (req, res) => {
       try {
@@ -130,6 +143,59 @@ async function run() {
         });
       }
     });
+
+    // Hero Apis
+    // ==============================================================
+    // Save or update hero image
+    app.post("/api/v1/hero", async (req, res) => {
+      const { image } = req.body;
+
+      try {
+        await heroCollection.deleteMany({});
+        const result = await heroCollection.insertOne({ image });
+
+        res.status(201).json({
+          success: true,
+          message: "Hero image saved",
+          data: result,
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: "Save failed", error });
+      }
+    });
+
+    // Get hero image
+    app.get("/api/v1/hero", async (req, res) => {
+      try {
+        const hero = await heroCollection.findOne();
+        res.status(200).json({
+          success: true,
+          image: hero?.image || null,
+        });
+      } catch (error) {
+        res
+          .status(500)
+          .json({ success: false, message: "Fetch failed", error });
+      }
+    });
+
+    // Delete hero image
+    app.delete("/api/v1/hero", async (req, res) => {
+      try {
+        const result = await heroCollection.deleteMany({});
+        res.status(200).json({
+          success: true,
+          message: "Hero image deleted",
+          data: result,
+        });
+      } catch (error) {
+        res
+          .status(500)
+          .json({ success: false, message: "Delete failed", error });
+      }
+    });
+
+    // ==============================================================
 
     // Blog Apis
     // ==============================================================
